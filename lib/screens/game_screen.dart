@@ -31,6 +31,7 @@ class _GameScreenState extends State<GameScreen>
   // Animation controller for dice
   late AnimationController _controller;
   late Animation<double> _animation;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
@@ -80,6 +81,14 @@ class _GameScreenState extends State<GameScreen>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.elasticOut,
+    ));
+
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
     ));
   }
 
@@ -143,9 +152,9 @@ class _GameScreenState extends State<GameScreen>
 
   // Check if player landed on a snake or ladder
   BoardElement? _checkIfLandedOnElement() {
+    final currentPosition = gameBoard.currentPlayer.position;
     for (var element in gameBoard.boardElements) {
-      if (element.end == gameBoard.currentPlayer.position &&
-          element.start != gameBoard.currentPlayer.position) {
+      if (element.start == currentPosition || element.end == currentPosition) {
         return element;
       }
     }
@@ -180,15 +189,15 @@ class _GameScreenState extends State<GameScreen>
   Color _getGameModeColor() {
     switch (widget.gameMode) {
       case GameMode.classic:
-        return Colors.blue.shade800;
+        return Colors.green;
       case GameMode.timeAttack:
-        return Colors.orange.shade800;
+        return Colors.orange;
       case GameMode.challenge:
-        return Colors.red.shade800;
+        return Colors.red;
       case GameMode.powerUp:
-        return Colors.purple.shade800;
+        return Colors.purple;
       default:
-        return Colors.blue.shade800; // Default color
+        return Colors.green;
     }
   }
 
@@ -211,6 +220,12 @@ class _GameScreenState extends State<GameScreen>
   // Use a power-up
   void _usePowerUp(PowerUp powerUp, {Player? targetPlayer}) {
     if (gameBoard.gameOver) return;
+    if (targetPlayer == gameBoard.currentPlayer) {
+      setState(() {
+        message = 'Cannot use power-up on yourself!';
+      });
+      return;
+    }
 
     setState(() {
       // Apply power-up effect
@@ -228,20 +243,29 @@ class _GameScreenState extends State<GameScreen>
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final boardSize = screenSize.width * 0.9; // Board takes 90% of screen width
+    final themeColor = _getGameModeColor();
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text('Snake & Ladder - ${_getGameModeTitle()}'),
-        backgroundColor: _getGameModeColor(),
-        foregroundColor: Colors.white,
+        title: Text(
+          'Snake & Ladder',
+          style: TextStyle(
+            color: themeColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: themeColor),
           onPressed: _goToHome,
           tooltip: 'Back to Home',
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: themeColor),
             onPressed: _resetGame,
             tooltip: 'Reset Game',
           ),
@@ -249,249 +273,362 @@ class _GameScreenState extends State<GameScreen>
       ),
       body: Column(
         children: [
+          // Game mode indicator
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            color: themeColor.withOpacity(0.1),
+            child: Center(
+              child: Text(
+                _getGameModeTitle(),
+                style: TextStyle(
+                  color: themeColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+
           // Game board
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: GameBoardWidget(
-              gameBoard: gameBoard,
-              size: boardSize,
+            padding: const EdgeInsets.all(16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: themeColor.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: GameBoardWidget(
+                gameBoard: gameBoard,
+                size: boardSize,
+              ),
             ),
           ),
 
           // Game controls and info
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                // Game message and timer
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Column(
-                    children: [
-                      Text(
-                        message,
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (widget.gameMode == GameMode.timeAttack &&
-                          remainingSeconds != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Game message and timer
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: themeColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
                           child: Text(
-                            'Time: $remainingSeconds seconds',
+                            message,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: remainingSeconds! < 10
-                                  ? Colors.red
-                                  : Colors.black87,
+                              color: themeColor,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
-                    ],
-                  ),
-                ),
-
-                // Dice and player info
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Player indicators
-                    Expanded(
-                      child: Column(
-                        children: gameBoard.players.map((player) {
-                          final isCurrentPlayer =
-                              player == gameBoard.currentPlayer;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Row(
-                              children: [
-                                Stack(
-                                  children: [
-                                    Container(
-                                      width: 24,
-                                      height: 24,
-                                      decoration: BoxDecoration(
-                                        color: player.color,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: isCurrentPlayer
-                                              ? Colors.yellow
-                                              : Colors.transparent,
-                                          width: 2,
-                                        ),
-                                      ),
-                                    ),
-                                    if (player.hasShield)
-                                      Positioned(
-                                        right: -2,
-                                        bottom: -2,
-                                        child: Container(
-                                          width: 12,
-                                          height: 12,
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                                color: Colors.white, width: 1),
-                                          ),
-                                          child: const Icon(
-                                            Icons.shield,
-                                            size: 8,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
+                        if (widget.gameMode == GameMode.timeAttack &&
+                            remainingSeconds != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: remainingSeconds! < 10
+                                    ? Colors.red.withOpacity(0.1)
+                                    : themeColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: Text(
+                                'Time: $remainingSeconds seconds',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: remainingSeconds! < 10
+                                      ? Colors.red
+                                      : themeColor,
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        player.name,
-                                        style: TextStyle(
-                                          fontWeight: isCurrentPlayer
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Position: ${player.position}',
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-
-                    // Dice
-                    GestureDetector(
-                      onTap: _rollDice,
-                      child: ScaleTransition(
-                        scale: _animation,
-                        child: DiceWidget(
-                          value: lastRoll,
-                          isRolling: isRolling,
-                          color: _getGameModeColor(),
-                          size: 120.0, // Larger size for better visibility
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Power-ups section
-                if (widget.gameMode == GameMode.powerUp ||
-                    gameBoard.players.any((p) => p.powerUps.isNotEmpty))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Power-Ups',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _getGameModeColor(),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        if (gameBoard.currentPlayer.powerUps.isEmpty)
-                          const Text(
-                            'No power-ups available',
-                            style: TextStyle(
-                                fontSize: 12, fontStyle: FontStyle.italic),
-                          )
-                        else
-                          SizedBox(
-                            height: 50,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount:
-                                  gameBoard.currentPlayer.powerUps.length,
-                              itemBuilder: (context, index) {
-                                final powerUp =
-                                    gameBoard.currentPlayer.powerUps[index];
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 4.0),
-                                  child: Tooltip(
-                                    message:
-                                        '${powerUp.name}: ${powerUp.description}',
-                                    child: InkWell(
-                                      onTap: () {
-                                        if (powerUp.type ==
-                                            PowerUpType.swapPosition) {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              title:
-                                                  const Text('Select Player'),
-                                              content: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: gameBoard.players
-                                                    .where((p) =>
-                                                        p !=
-                                                        gameBoard.currentPlayer)
-                                                    .map((p) => ListTile(
-                                                          leading: CircleAvatar(
-                                                            backgroundColor:
-                                                                p.color,
-                                                            radius: 12,
-                                                          ),
-                                                          title: Text(p.name),
-                                                          onTap: () {
-                                                            Navigator.of(
-                                                                    context)
-                                                                .pop();
-                                                            _usePowerUp(powerUp,
-                                                                targetPlayer:
-                                                                    p);
-                                                          },
-                                                        ))
-                                                    .toList(),
-                                              ),
-                                            ),
-                                          );
-                                        } else {
-                                          _usePowerUp(powerUp);
-                                        }
-                                      },
-                                      child: Container(
-                                        width: 40,
-                                        height: 40,
-                                        decoration: BoxDecoration(
-                                          color: powerUp.color.withOpacity(0.2),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          border:
-                                              Border.all(color: powerUp.color),
-                                        ),
-                                        child: Icon(
-                                          powerUp.icon,
-                                          color: powerUp.color,
-                                          size: 24,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
+                              ),
                             ),
                           ),
                       ],
                     ),
                   ),
-              ],
+
+                  // Player indicators and dice
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Player indicators
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: gameBoard.players.map((player) {
+                              final isCurrentPlayer =
+                                  player == gameBoard.currentPlayer;
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8.0),
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: isCurrentPlayer
+                                        ? themeColor.withOpacity(0.1)
+                                        : Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(15),
+                                    border: Border.all(
+                                      color: isCurrentPlayer
+                                          ? themeColor
+                                          : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Stack(
+                                        children: [
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: player.color,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          if (player.hasShield)
+                                            Positioned(
+                                              right: -2,
+                                              bottom: -2,
+                                              child: Container(
+                                                width: 16,
+                                                height: 16,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                      color: Colors.white,
+                                                      width: 1),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.shield,
+                                                  size: 10,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              player.name,
+                                              style: TextStyle(
+                                                fontWeight: isCurrentPlayer
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                                color: isCurrentPlayer
+                                                    ? themeColor
+                                                    : Colors.black87,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Position: ${player.position}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+
+                        // Dice
+                        ScaleTransition(
+                          scale: _scaleAnimation,
+                          child: GestureDetector(
+                            onTap: _rollDice,
+                            child: Container(
+                              width: 100,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                color: themeColor,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: themeColor.withOpacity(0.3),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: DiceWidget(
+                                  value: lastRoll,
+                                  isRolling: isRolling,
+                                  color: Colors.white,
+                                  size: 60.0,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Power-ups section
+                  if (widget.gameMode == GameMode.powerUp ||
+                      gameBoard.players.any((p) => p.powerUps.isNotEmpty))
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Power-Ups',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: themeColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          if (gameBoard.currentPlayer.powerUps.isEmpty)
+                            Text(
+                              'No power-ups available',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey[600],
+                              ),
+                            )
+                          else
+                            SizedBox(
+                              height: 60,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount:
+                                    gameBoard.currentPlayer.powerUps.length,
+                                itemBuilder: (context, index) {
+                                  final powerUp =
+                                      gameBoard.currentPlayer.powerUps[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 4.0),
+                                    child: Tooltip(
+                                      message:
+                                          '${powerUp.name}: ${powerUp.description}',
+                                      child: InkWell(
+                                        onTap: () {
+                                          if (powerUp.type ==
+                                              PowerUpType.swapPosition) {
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title:
+                                                    const Text('Select Player'),
+                                                content: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: gameBoard.players
+                                                      .where((p) =>
+                                                          p !=
+                                                          gameBoard
+                                                              .currentPlayer)
+                                                      .map((p) => ListTile(
+                                                            leading:
+                                                                CircleAvatar(
+                                                              backgroundColor:
+                                                                  p.color,
+                                                              radius: 12,
+                                                            ),
+                                                            title: Text(p.name),
+                                                            onTap: () {
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .pop();
+                                                              _usePowerUp(
+                                                                  powerUp,
+                                                                  targetPlayer:
+                                                                      p);
+                                                            },
+                                                          ))
+                                                      .toList(),
+                                                ),
+                                              ),
+                                            );
+                                          } else {
+                                            _usePowerUp(powerUp);
+                                          }
+                                        },
+                                        child: Container(
+                                          width: 50,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            color:
+                                                powerUp.color.withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: powerUp.color),
+                                          ),
+                                          child: Icon(
+                                            powerUp.icon,
+                                            color: powerUp.color,
+                                            size: 28,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ],
