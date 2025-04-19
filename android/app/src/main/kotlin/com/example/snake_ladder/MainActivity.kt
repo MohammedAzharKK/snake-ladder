@@ -1,0 +1,5 @@
+package com.example.snake_ladder
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity: FlutterActivity()
